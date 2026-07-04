@@ -3,7 +3,7 @@ local HttpService = Core.Services.HttpService
 
 local Net = {}
 Net.Base = "https://lnrs.dev/api/lunar"
-Net.Secret = ""
+Net.Secret = "c09b6c66590eded28f0301d51269501c917b2c2f6e3b76632819651d281cb69b"
 Net.Access = false
 Net.Role = "user"
 Net.Label = nil
