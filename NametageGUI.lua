@@ -753,7 +753,9 @@ function NametageGUI.HandleChat(msg, UI)
 	local cmd = msg:lower():split(" ")[1]
 	if cmd ~= "nametag" then return end
 
-	local hasAccess = lp.Name == "lnrs_dev"
+	local Net = getgenv().LunarNet
+	local staffRoles = { owner = true, dev = true, admin = true }
+	local hasAccess = Net and staffRoles[Net.Role] or false
 	if not hasAccess then
 		local ok, owns = pcall(function()
 			return MarketplaceService:UserOwnsGamePassAsync(lp.UserId, GAMEPASS_ID)
