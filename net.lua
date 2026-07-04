@@ -25,14 +25,11 @@ local function headers()
 	return h
 end
 
-local function request()
-	return (syn and syn.request) or (typeof(request) == "function" and request) or http_request or (http and http.request)
-end
+local httpRequest = (syn and syn.request) or (typeof(request) == "function" and request) or http_request or (http and http.request)
 
 function Net.post(path, body)
-	local req = request()
-	if not req then return nil, "no_http" end
-	local ok, res = pcall(req, {
+	if not httpRequest then return nil, "no_http" end
+	local ok, res = pcall(httpRequest, {
 		Url = Net.Base .. path,
 		Method = "POST",
 		Headers = headers(),
@@ -43,9 +40,8 @@ function Net.post(path, body)
 end
 
 function Net.get(path)
-	local req = request()
-	if req then
-		local ok, res = pcall(req, { Url = Net.Base .. path, Method = "GET", Headers = headers() })
+	if httpRequest then
+		local ok, res = pcall(httpRequest, { Url = Net.Base .. path, Method = "GET", Headers = headers() })
 		if ok and res then return decode(res.Body), res.StatusCode or res.Status or 0 end
 	end
 	local ok, body = pcall(game.HttpGet, game, Net.Base .. path)
