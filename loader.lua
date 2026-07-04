@@ -41,6 +41,37 @@ if not ok then
 end
 getgenv().Lunar = Core
 
+local netOk, Net = pcall(run, "src/net.lua")
+if not netOk or not Net then
+	warn("[Lunar] network layer failed: " .. tostring(Net))
+	getgenv().LunarLoaded = false
+	getgenv().Lunar = nil
+	return
+end
+
+local auth = Net.auth()
+if not auth or not auth.access then
+	local reason = auth and auth.reason or "no_access"
+	local msg = (reason == "banned" and "You are banned from Lunar.")
+		or (reason == "expired" and "Your Lunar access has expired.")
+		or (reason == "inactive" and "Your Lunar access is disabled.")
+		or (reason == "offline" and "Could not reach Lunar servers.")
+		or "You don't have access to Lunar."
+	pcall(function()
+		game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Lunar", Text = msg, Duration = 8 })
+	end)
+	warn("[Lunar] " .. msg)
+	getgenv().LunarLoaded = false
+	getgenv().Lunar = nil
+	return
+end
+
+Core.Config._data = (type(auth.config) == "table" and auth.config) or Core.Config._data
+Core.Config.Save = function(self)
+	if Core.Net then Core.Net.saveConfig(self._data) end
+	return true
+end
+
 local MODULES = {
 	"src/modules/movement.lua",
 	"src/modules/player.lua",
@@ -49,6 +80,7 @@ local MODULES = {
 	"src/modules/visuals.lua",
 	"src/modules/server.lua",
 	"src/modules/fun.lua",
+	"src/modules/nametags.lua",
 }
 
 local loaded, failed = 0, {}
@@ -74,6 +106,7 @@ Core._maid:Give(Core.LocalPlayer.Chatted:Connect(function(msg)
 	pcall(function() Core.Commands:Dispatch(msg, { source = "chat" }) end)
 end))
 
+Core.Notify(("Welcome back, %s — %s"):format(Core.LocalPlayer.Name, Net.Label or (Net.Role or "member")), "Success")
 Core.Notify(("Lunar v%s loaded — %d/%d modules"):format(Core.Version, loaded, #MODULES), "Success")
 if #failed > 0 then
 	Core.Notify(#failed .. " module(s) failed, see console (F9)", "Warn")
