@@ -1,5 +1,5 @@
-local Core = getgenv().Lunar
-local HttpService = Core.Services.HttpService
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
 
 local Net = {}
 Net.Base = "https://lnrs.dev/api/lunar"
@@ -9,8 +9,8 @@ Net.Role = "user"
 Net.Label = nil
 Net.Color = nil
 Net.Identity = {
-	userId = tostring(Core.LocalPlayer.UserId),
-	username = Core.LocalPlayer.Name,
+	userId = tostring(Players.LocalPlayer.UserId),
+	username = Players.LocalPlayer.Name,
 }
 
 local function decode(body)
@@ -25,8 +25,12 @@ local function headers()
 	return h
 end
 
+local function request()
+	return (syn and syn.request) or (typeof(request) == "function" and request) or http_request or (http and http.request)
+end
+
 function Net.post(path, body)
-	local req = Core.Exploit.request
+	local req = request()
 	if not req then return nil, "no_http" end
 	local ok, res = pcall(req, {
 		Url = Net.Base .. path,
@@ -39,7 +43,7 @@ function Net.post(path, body)
 end
 
 function Net.get(path)
-	local req = Core.Exploit.request
+	local req = request()
 	if req then
 		local ok, res = pcall(req, { Url = Net.Base .. path, Method = "GET", Headers = headers() })
 		if ok and res then return decode(res.Body), res.StatusCode or res.Status or 0 end
@@ -78,9 +82,14 @@ function Net.nametags(userIds)
 	return (data and data.tags) or {}
 end
 
+function Net.roster()
+	local data = Net.get("/roster?userId=" .. Net.Identity.userId)
+	return (data and data.users) or {}
+end
+
 function Net.saveConfig(tbl)
 	return Net.post("/config", { userId = Net.Identity.userId, data = tbl or {} })
 end
 
-Core.Net = Net
+getgenv().LunarNet = Net
 return Net

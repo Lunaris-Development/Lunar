@@ -1,116 +1,112 @@
-if getgenv().Lunar and getgenv().LunarReady then
-	warn("[Lunar] already running")
-	getgenv().Lunar.Notify("Lunar is already loaded", "Warn")
-	return getgenv().Lunar
+if getgenv().LunarLoaded and game:GetService("CoreGui"):FindFirstChild("LunarDynamicIsland") then
+	warn("Lunar is already running!")
+	return
 end
 getgenv().LunarLoaded = true
 
-local USER = "Lunaris-Development"
-local REPO = "Lunar"
-local BRANCH = "main"
-local BASE = ("https://raw.githubusercontent.com/%s/%s/%s/"):format(USER, REPO, BRANCH)
+local BaseURL = "https://raw.githubusercontent.com/Lunaris-Development/Lunar/main/"
+local function GetBust() return "?t=" .. tostring(tick()) end
+
+local function Load(file)
+	local content = game:HttpGet(BaseURL .. file .. GetBust())
+	return loadstring(content)()
+end
 
 local qot = queue_on_teleport or queueonteleport
 if qot then
-	pcall(qot, ('loadstring(game:HttpGet("%sloader.lua"))()'):format(BASE))
+	pcall(qot, ('loadstring(game:HttpGet("%sloader.lua"))()'):format(BaseURL))
 end
 
-local function fetch(path)
-	local url = BASE .. path .. "?v=" .. tostring(tick())
-	local ok, body = pcall(game.HttpGet, game, url)
-	if not ok or type(body) ~= "string" or body == "" then
-		error(("fetch failed: %s (%s)"):format(path, tostring(body)), 0)
-	end
-	return body
-end
+local Net = Load("net.lua")
 
-local function run(path, ...)
-	local src = fetch(path)
-	local chunk, err = loadstring(src, "=" .. path)
-	if not chunk then
-		error(("compile %s: %s"):format(path, tostring(err)), 0)
-	end
-	return chunk(...)
-end
-
-local ok, Core = pcall(run, "src/core.lua")
-if not ok then
-	warn("[Lunar] core failed to load: " .. tostring(Core))
+local function denyAndStop(reason, banReason)
+	local msg = (reason == "banned" and ("You are banned from Lunar." .. (banReason and (" (" .. banReason .. ")") or "")))
+		or (reason == "expired" and "Your Lunar access has expired.")
+		or (reason == "inactive" and "Your Lunar access is disabled.")
+		or (reason == "offline" and "Could not reach Lunar servers. Try again shortly.")
+		or "You don't have access to Lunar."
+	warn("[Lunar] " .. msg)
+	pcall(function()
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Lunar", Text = msg, Duration = 8,
+		})
+	end)
 	getgenv().LunarLoaded = false
-	return
-end
-getgenv().Lunar = Core
-
-local netOk, Net = pcall(run, "src/net.lua")
-if not netOk or not Net then
-	warn("[Lunar] network layer failed: " .. tostring(Net))
-	getgenv().LunarLoaded = false
-	getgenv().Lunar = nil
-	return
 end
 
 local auth = Net.auth()
 if not auth or not auth.access then
-	local reason = auth and auth.reason or "no_access"
-	local msg = (reason == "banned" and "You are banned from Lunar.")
-		or (reason == "expired" and "Your Lunar access has expired.")
-		or (reason == "inactive" and "Your Lunar access is disabled.")
-		or (reason == "offline" and "Could not reach Lunar servers.")
-		or "You don't have access to Lunar."
-	pcall(function()
-		game:GetService("StarterGui"):SetCore("SendNotification", { Title = "Lunar", Text = msg, Duration = 8 })
-	end)
-	warn("[Lunar] " .. msg)
-	getgenv().LunarLoaded = false
-	getgenv().Lunar = nil
+	denyAndStop(auth and auth.reason, auth and auth.banReason)
 	return
 end
 
-Core.Config._data = (type(auth.config) == "table" and auth.config) or Core.Config._data
-Core.Config.Save = function(self)
-	if Core.Net then Core.Net.saveConfig(self._data) end
-	return true
-end
+local UI = Load("UI.lua")
+local Nametags = Load("Nametags.lua")
+local ESP = Load("ESP.lua")
+local Freecam = Load("Freecam.lua")
+local AntiAFK = Load("AntiAFK.lua")
+local ClickTP = Load("ClickTP.lua")
+local LagSpoof = Load("LagSpoof.lua")
+local UserSpoofer = Load("UserSpoofer.lua")
+local ServerInfo = Load("ServerInfo.lua")
+local ServerList = Load("ServerList.lua")
+local LoopSpeed = Load("LoopSpeed.lua")
 
-local MODULES = {
-	"src/modules/movement.lua",
-	"src/modules/player.lua",
-	"src/modules/combat.lua",
-	"src/modules/teleport.lua",
-	"src/modules/visuals.lua",
-	"src/modules/server.lua",
-	"src/modules/fun.lua",
-	"src/modules/nametags.lua",
+local ShLow = Load("ShLow.lua")
+local ShMost = Load("ShMost.lua")
+local Noclip = Load("Noclip.lua")
+local InfJump = Load("InfJump.lua")
+local GodMode = Load("GodMode.lua")
+local PlayerTP = Load("PlayerTP.lua")
+local WalkOnAir = Load("WalkOnAir.lua")
+local Invisible = Load("Invisible.lua")
+local Reach = Load("Reach.lua")
+local AimLock = Load("AimLock.lua")
+local Hug = Load("Hug.lua")
+local Flip = Load("Flip.lua")
+local Rizzlines = Load("Rizzlines.lua")
+local ProperFling = Load("ProperFling.lua")
+local Animations = Load("Animations.lua")
+local NametageGUI = Load("NametageGUI.lua")
+local GlobalChat = Load("GlobalChat.lua")
+
+local allModules = {
+	Freecam, AntiAFK, ClickTP, LagSpoof, UserSpoofer,
+	ServerInfo, ServerList, LoopSpeed,
+	ShLow, ShMost, Noclip, InfJump, GodMode, PlayerTP,
+	WalkOnAir, Invisible, Reach, AimLock, Hug, Flip,
+	Rizzlines, ProperFling, Animations, NametageGUI, GlobalChat
 }
 
-local loaded, failed = 0, {}
-for _, path in ipairs(MODULES) do
-	local success, err = pcall(run, path)
-	if success then
-		loaded += 1
-	else
-		table.insert(failed, path)
-		warn(("[Lunar] module failed: %s -> %s"):format(path, tostring(err)))
+local Commands = {}
+setmetatable(Commands, {
+	__newindex = function(t, k, v)
+		rawset(t, k, v)
+		if k == "_UI" then Freecam._UI = v end
+	end
+})
+
+function Commands.HandleChat(msg, UI_ref, ESP_ref, silent)
+	for _, mod in ipairs(allModules) do
+		if mod.HandleChat then
+			pcall(mod.HandleChat, msg, UI_ref or Commands._UI, ESP_ref, silent)
+		end
 	end
 end
 
-local uiOk, UI = pcall(run, "src/ui.lua")
-if uiOk and UI then
-	Core.UI = UI
-	pcall(UI.Mount)
-else
-	warn("[Lunar] UI failed to load: " .. tostring(UI))
+Commands.ToggleFreecam = function(UI_ref)
+	if Freecam.ToggleFreecam then Freecam.ToggleFreecam(UI_ref) end
 end
 
-Core._maid:Give(Core.LocalPlayer.Chatted:Connect(function(msg)
-	pcall(function() Core.Commands:Dispatch(msg, { source = "chat" }) end)
-end))
+UI.Init(Nametags, Commands, ESP, Rizzlines, Animations, ProperFling)
+Nametags.Init()
 
-Core.Notify(("Welcome back, %s — %s"):format(Core.LocalPlayer.Name, Net.Label or (Net.Role or "member")), "Success")
-Core.Notify(("Lunar v%s loaded — %d/%d modules"):format(Core.Version, loaded, #MODULES), "Success")
-if #failed > 0 then
-	Core.Notify(#failed .. " module(s) failed, see console (F9)", "Warn")
-end
+game:GetService("Players").LocalPlayer.Chatted:Connect(function(msg)
+	pcall(function()
+		Commands.HandleChat(msg, UI, ESP)
+	end)
+end)
+
+UI.Notify(("Welcome back, %s — %s"):format(game:GetService("Players").LocalPlayer.Name, Net.Label or Net.Role), "Success")
 
 getgenv().LunarReady = true
-return Core
